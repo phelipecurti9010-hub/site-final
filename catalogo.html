@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Catálogo - Cadastro de Produtos</title>
+
+<style>
+/* Estilo padronizado (moderno + colorido) */
+:root{
+  --bg1: linear-gradient(135deg,#ff7b00,#ff0066);
+  --glass: rgba(255,255,255,0.14);
+  --glass-strong: rgba(255,255,255,0.22);
+  --accent: #00ffe0;
+  --dark: rgba(0,0,0,0.35);
+}
+
+*{box-sizing:border-box}
+body{margin:0;font-family:"Poppins",Arial,sans-serif;background:var(--bg1);color:white;min-height:100vh;}
+header{padding:28px;text-align:center;background:var(--dark);backdrop-filter:blur(5px);font-size:22px;font-weight:700;}
+nav{background:var(--dark);backdrop-filter:blur(5px);}
+nav ul{list-style:none;margin:0;padding:10px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+nav a{color:white;text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600}
+.container{width:92%;max-width:1100px;margin:34px auto;padding:22px;border-radius:14px;background:var(--glass);backdrop-filter:blur(6px);box-shadow:0 8px 30px #00000050}
+h2{margin-top:0}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.form-grid{grid-template-columns:1fr}}
+input,textarea,select{width:100%;padding:10px;border-radius:10px;border:none;outline:none}
+label{font-weight:700;margin-bottom:6px;display:block}
+.btn{display:inline-block;padding:12px 16px;border-radius:10px;border:none;font-weight:700;cursor:pointer}
+.btn-primary{background:var(--accent);color:#111}
+.btn-ghost{background:transparent;border:2px solid rgba(255,255,255,0.08);color:white}
+.products-list{margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:1000px){.products-list{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.products-list{grid-template-columns:1fr}}
+.card{background:var(--glass-strong);padding:14px;border-radius:12px;box-shadow:0 8px 18px #00000050;transition:transform .18s}
+.card:hover{transform:translateY(-6px)}
+.card img{width:100%;height:180px;object-fit:cover;border-radius:8px;margin-bottom:10px}
+.card h3{margin:6px 0 8px 0}
+.card p{margin:0 0 8px 0;color:#f1f1f1}
+.card small{display:block;color:#e6e6e6;margin-bottom:10px}
+.card .card-actions{display:flex;gap:8px;flex-wrap:wrap}
+.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,0.2);font-weight:700}
+.note{font-size:13px;color:#fff9; margin-top:8px}
+</style>
+</head>
+<body>
+
+<header>📦 Painel de Cadastro — Catálogo</header>
+<nav>
+  <ul>
+    <li><a href="index.html">Home</a></li>
+    <li><a href="quemsomos.html">Quem Somos</a></li>
+    <li><a href="produtos.html">Produtos</a></li>
+    <li><a href="sac.html">SAC</a></li>
+    <li><a href="catalogo.html">Catálogo</a></li>
+    <li><a href="admin.html">Administração</a></li>
+  </ul>
+</nav>
+
+<div class="container">
+  <h2>Adicionar / Editar Produto</h2>
+
+  <form id="produtoForm">
+    <div class="form-grid">
+      <div>
+        <label for="nome">Nome</label>
+        <input id="nome" required placeholder="Ex: Roda aro 15" />
+      </div>
+
+      <div>
+        <label for="preco">Preço (R$)</label>
+        <input id="preco" type="number" step="0.01" required placeholder="100.00" />
+      </div>
+
+      <div>
+        <label for="estoque">Estoque (unidades)</label>
+        <input id="estoque" type="number" required placeholder="10" />
+      </div>
+
+      <div>
+        <label for="img">URL da Imagem</label>
+        <input id="img" type="url" placeholder="https://exemplo.com/foto.jpg" />
+      </div>
+
+      <div style="grid-column:1 / -1">
+        <label for="desc">Descrição</label>
+        <textarea id="desc" rows="3" placeholder="Descrição do produto..."></textarea>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="salvarBtn" type="submit">Salvar Produto</button>
+      <button class="btn btn-ghost" id="limparBtn" type="button">Limpar</button>
+      <div class="note">Ao salvar, o produto aparecerá automaticamente na página de produtos.</div>
+    </div>
+  </form>
+
+  <hr style="margin:20px 0;border:none;height:1px;background:rgba(255,255,255,0.06)" />
+
+  <h2>Produtos Cadastrados</h2>
+  <div id="listaProdutos" class="products-list">
+    <!-- Cards gerados dinamicamente -->
+  </div>
+</div>
+
+<!-- Firebase + Lógica CRUD -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // config (seu)
+  const firebaseConfig = {
+    apiKey: "AIzaSyA1jqtL0w3-g8lMMdzqG6EZXYjYaadjOpE",
+    authDomain: "loja-final-c7af0.firebaseapp.com",
+    databaseURL: "https://loja-final-c7af0-default-rtdb.firebaseio.com",
+    projectId: "loja-final-c7af0",
+    storageBucket: "loja-final-c7af0.firebasestorage.app",
+    messagingSenderId: "895657253198",
+    appId: "1:895657253198:web:c0ec7d4c31482f1c26e61f",
+    measurementId: "G-BHB81J2JD4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const produtosRef = ref(db, 'produtos');
+
+  // elementos
+  const form = document.getElementById('produtoForm');
+  const nomeIn = document.getElementById('nome');
+  const precoIn = document.getElementById('preco');
+  const estoqueIn = document.getElementById('estoque');
+  const imgIn = document.getElementById('img');
+  const descIn = document.getElementById('desc');
+  const listaProdutos = document.getElementById('listaProdutos');
+  const salvarBtn = document.getElementById('salvarBtn');
+  const limparBtn = document.getElementById('limparBtn');
+
+  // estado para edição
+  let editKey = null;
+
+  // limpar formulário
+  function limparForm() {
+    form.reset();
+    editKey = null;
+    salvarBtn.textContent = 'Salvar Produto';
+  }
+  limparBtn.addEventListener('click', limparForm);
+
+  // criar / atualizar
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const produto = {
+      nome: nomeIn.value.trim(),
+      preco: parseFloat(precoIn.value) || 0,
+      estoque: parseInt(estoqueIn.value) || 0,
+      img: imgIn.value.trim() || '',
+      descricao: descIn.value.trim() || ''
+    };
+
+    if (!produto.nome) { alert('Informe o nome do produto.'); return; }
+
+    if (editKey) {
+      // atualizar
+      update(ref(db, 'produtos/' + editKey), produto)
+        .then(() => { alert('Produto atualizado.'); limparForm(); })
+        .catch(err => alert('Erro ao atualizar: ' + err));
+    } else {
+      // criar novo
+      const newRef = push(produtosRef);
+      set(newRef, produto)
+        .then(() => { alert('Produto salvo.'); limparForm(); })
+        .catch(err => alert('Erro ao salvar: ' + err));
+    }
+  });
+
+  // listar produtos em tempo real
+  onValue(produtosRef, (snapshot) => {
+    listaProdutos.innerHTML = '';
+    const data = snapshot.val();
+    if (!data) {
+      listaProdutos.innerHTML = '<div style="color:#fff9">Nenhum produto cadastrado</div>';
+      return;
+    }
+    // snapshot.forEach is alternative, but we have object keys
+    Object.keys(data).reverse().forEach(key => {
+      const p = data[key];
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const img = document.createElement('img');
+      img.src = p.img || 'https://via.placeholder.com/500x300?text=Sem+Imagem';
+      img.alt = p.nome;
+
+      const h3 = document.createElement('h3');
+      h3.textContent = p.nome;
+
+      const price = document.createElement('small');
+      price.textContent = 'R$ ' + Number(p.preco).toFixed(2);
+
+      const desc = document.createElement('p');
+      desc.textContent = p.descricao || '';
+
+      const estoque = document.createElement('div');
+      estoque.className = 'badge';
+      estoque.textContent = 'Estoque: ' + (p.estoque || 0);
+
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+
+      // Editar
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-ghost';
+      btnEdit.textContent = 'Editar';
+      btnEdit.addEventListener('click', () => {
+        // preencher form para editar
+        nomeIn.value = p.nome || '';
+        precoIn.value = p.preco || '';
+        estoqueIn.value = p.estoque || '';
+        imgIn.value = p.img || '';
+        descIn.value = p.descricao || '';
+        editKey = key;
+        salvarBtn.textContent = 'Atualizar Produto';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Remover
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn btn-ghost';
+      btnDel.textContent = 'Excluir';
+      btnDel.addEventListener('click', () => {
+        if (confirm('Excluir produto?')) {
+          remove(ref(db, 'produtos/' + key))
+            .then(() => alert('Produto excluído.'))
+            .catch(err => alert('Erro ao excluir: ' + err));
+        }
+      });
+
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnDel);
+
+      card.appendChild(img);
+      card.appendChild(h3);
+      card.appendChild(price);
+      card.appendChild(desc);
+      card.appendChild(estoque);
+      card.appendChild(actions);
+
+      listaProdutos.appendChild(card);
+    });
+  });
+
+</script>
+</body>
+</html>
